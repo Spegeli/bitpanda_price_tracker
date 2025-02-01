@@ -1,6 +1,6 @@
 from homeassistant import config_entries
-from homeassistant.helpers import config_validation as cv
 from homeassistant.core import callback
+from homeassistant.helpers import selector  # Import für Selector hinzugefügt
 from typing import Any
 import voluptuous as vol
 import aiohttp
@@ -78,7 +78,7 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input and (selected := user_input.get(CONF_SYMBOLS)):
             return self.async_create_entry(
-                title=f"Bitpanda ({self._currency})",
+                title=f"Bitpanda Price Tracker ({self._currency})",
                 data={
                     CONF_CURRENCY: self._currency,
                 },
@@ -91,10 +91,16 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input:
             errors["base"] = "no_symbols_selected"
 
+        selector_config = selector.SelectSelectorConfig(
+            options=valid_symbols,
+            multiple=True,
+            mode=selector.SelectSelectorMode.DROPDOWN
+        )
+
         return self.async_show_form(
             step_id="symbols",
             data_schema=vol.Schema({
-                vol.Required(CONF_SYMBOLS): cv.multi_select({s: s for s in valid_symbols})
+                vol.Required(CONF_SYMBOLS): selector.SelectSelector(selector_config)
             }),
             errors=errors
         )
@@ -102,20 +108,18 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return BitpandaOptionsFlow(config_entry)
+        return BitpandaOptionsFlow()
 
 class BitpandaOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow updates."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        self._currency = config_entry.data[CONF_CURRENCY]
-        self._update_interval = config_entry.options.get(CONF_UPDATE_INTERVAL, "5")
-        self._symbols = config_entry.options.get(CONF_SYMBOLS, [])
-
     async def async_step_init(self, user_input: dict[str, Any] = None):
         """Manage the options."""
+        # Initialisierung der Variablen
+        self._currency = self.config_entry.data[CONF_CURRENCY]
+        self._update_interval = self.config_entry.options.get(CONF_UPDATE_INTERVAL, "5")
+        self._symbols = self.config_entry.options.get(CONF_SYMBOLS, [])
+
         return await self.async_step_update_interval()
 
     async def async_step_update_interval(self, user_input: dict[str, Any] = None):
@@ -145,9 +149,15 @@ class BitpandaOptionsFlow(config_entries.OptionsFlow):
                 }
             )
 
+        selector_config = selector.SelectSelectorConfig(
+            options=valid_symbols,
+            multiple=True,
+            mode=selector.SelectSelectorMode.DROPDOWN
+        )
+
         return self.async_show_form(
             step_id="symbols",
             data_schema=vol.Schema({
-                vol.Required(CONF_SYMBOLS, default=self._symbols): cv.multi_select({s: s for s in valid_symbols})
+                vol.Required(CONF_SYMBOLS, default=self._symbols): selector.SelectSelector(selector_config)
             })
         )
