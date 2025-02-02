@@ -8,6 +8,8 @@ You need to manually load the "bitpanda_price_tracker" folder as it is into the 
 
 There you can select the currency in which everything should be tracked, the interval for updates (I recommend the standard 5 minutes), and finally which coins/tokens you want to track. For each selected coin/token, a separate sensor will be created, e.g., BTC/EUR.
 
+![image](https://github.com/user-attachments/assets/52377ed0-d893-4161-b358-ecc3de833f9f)
+
 The currency can only be selected during creation, not during editing. So if you decide to switch everything to USD instead of EUR, you need to delete the configuration once via the UI and re-create it with your desired currency.
 
 ---
