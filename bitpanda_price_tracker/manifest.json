@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "config_flow": true,
   "single_config_entry": true,
-  "image": "bitpanda_icon.jpg"
+  "translations": ["translations"]
 }
