@@ -1,0 +1,64 @@
+{
+  "title": "Bitpanda Price Tracker",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bitpanda Price Tracker Setup - Step 1/3",
+        "description": "Please select the currency to be used for display.",
+        "data": {
+          "currency": "Available Options:"
+        }
+      },
+      "update_interval": {
+        "title": "Bitpanda Price Tracker Setup - Step 2/3",
+        "description": "Please select the desired update interval.",
+        "data": {
+          "update_interval": "Available Options:"
+        }
+      },
+      "symbols": {
+        "title": "Bitpanda Price Tracker Setup - Step 3/3",
+        "description": "Please select the coins/tokens you want to track.",
+        "data": {
+          "symbols": "Coin / Token"
+        }
+      }
+    },
+    "error": {
+      "no_symbols": "No coins/token are available for the selected currency.",
+      "no_symbols_selected": "Please select at least one coin/token."
+    },
+    "intervals": {
+      "1": "1 Minute",
+      "2.5": "2.5 Minutes",
+      "5": "5 Minutes"
+    }
+  },
+  "options": {
+     "step": {
+      "update_interval": {
+        "title": "Bitpanda Price Tracker Setup - Step 1/2",
+        "description": "Please select the desired update interval.",
+        "data": {
+          "update_interval": "Available Options:"
+        }
+      },
+      "symbols": {
+        "title": "Bitpanda Price Tracker Setup - Step 2/2",
+        "description": "Please select the coins/tokens you want to track.",
+        "data": {
+          "symbols": "Coin / Token"
+        }
+      }
+    },
+    "error": {
+      "no_symbols": "No coins/token are available for the selected currency.",
+      "no_symbols_selected": "Please select at least one coin/token."
+    },
+    "intervals": {
+      "1": "1 Minute",
+      "2.5": "2.5 Minutes",
+      "5": "5 Minutes"
+    }
+  }
+}
