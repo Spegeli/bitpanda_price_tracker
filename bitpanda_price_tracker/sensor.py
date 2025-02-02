@@ -1,6 +1,3 @@
-from datetime import timedelta
-import logging
-
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -11,6 +8,8 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.util import dt as dt_util
+from datetime import timedelta
+import logging
 import aiohttp
 
 from .const import (
