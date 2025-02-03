@@ -1,43 +1,19 @@
+from typing import Any
+import voluptuous as vol
+import logging
+
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from typing import Any
-import voluptuous as vol
-import aiohttp
-import logging
-
 from homeassistant.helpers.translation import async_get_translations
 
-from .const import (
-    DOMAIN,
-    CONF_SYMBOLS,
-    CONF_CURRENCY,
-    BITPANDA_API_URL,
-    CURRENCIES,
-    DEFAULT_CURRENCY,
-    CONF_UPDATE_INTERVAL
-)
+from .const import DOMAIN, CONF_SYMBOLS, CONF_CURRENCY, BITPANDA_API_URL, CURRENCIES, DEFAULT_CURRENCY, CONF_UPDATE_INTERVAL
+from .api import async_fetch_valid_symbols
 
 _LOGGER = logging.getLogger(__name__)
 
-async def fetch_valid_symbols(currency: str) -> list[str]:
-    """Fetch valid symbols from Bitpanda API."""
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(BITPANDA_API_URL, timeout=10) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return sorted(
-                    symbol for symbol, details in data.items()
-                    if currency in details
-                )
-    except (aiohttp.ClientError, TimeoutError) as err:
-        _LOGGER.error("API error: %s", err)
-        return []
-
 class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Bitpanda."""
-
     VERSION = 1
     _currency: str = None
     _update_interval: str = None
@@ -47,14 +23,13 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input:
             self._currency = user_input[CONF_CURRENCY]
-            if await fetch_valid_symbols(self._currency):
+            if await async_fetch_valid_symbols(self.hass, self._currency):
                 return await self.async_step_update_interval()
             errors["base"] = "no_symbols"
 
         data_schema = vol.Schema({
             vol.Required(CONF_CURRENCY, default=DEFAULT_CURRENCY): vol.In(CURRENCIES)
         })
-
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
@@ -68,16 +43,13 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_symbols()
 
         translations = await async_get_translations(self.hass, self.hass.config.language, "config")
-
         update_interval_options = {
             key: translations.get(f"component.bitpanda_price_tracker.config.intervals.{key}", key)
             for key in ["1", "2.5", "5"]
         }
-
         data_schema = vol.Schema({
             vol.Required(CONF_UPDATE_INTERVAL, default="5"): vol.In(update_interval_options)
         })
-
         return self.async_show_form(
             step_id="update_interval",
             data_schema=data_schema
@@ -86,9 +58,8 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_symbols(self, user_input: dict[str, Any] = None):
         """Handle symbol selection."""
         errors = {}
-        valid_symbols = await fetch_valid_symbols(self._currency)
-
-        default_symbols = ["BEST"]  # Standardauswahl setzen
+        valid_symbols = await async_fetch_valid_symbols(self.hass, self._currency)
+        default_symbols = ["BEST"]
 
         if user_input and (selected := user_input.get(CONF_SYMBOLS)):
             return self.async_create_entry(
@@ -110,11 +81,9 @@ class BitpandaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
-
         data_schema = vol.Schema({
             vol.Required(CONF_SYMBOLS, default=default_symbols): selector.SelectSelector(selector_config)
         })
-
         return self.async_show_form(
             step_id="symbols",
             data_schema=data_schema,
@@ -134,7 +103,6 @@ class BitpandaOptionsFlow(config_entries.OptionsFlow):
         self._currency = self.config_entry.data[CONF_CURRENCY]
         self._update_interval = self.config_entry.options.get(CONF_UPDATE_INTERVAL, "5")
         self._symbols = self.config_entry.options.get(CONF_SYMBOLS, ["BEST"])
-
         return await self.async_step_update_interval()
 
     async def async_step_update_interval(self, user_input: dict[str, Any] = None):
@@ -144,16 +112,13 @@ class BitpandaOptionsFlow(config_entries.OptionsFlow):
             return await self.async_step_symbols()
 
         translations = await async_get_translations(self.hass, self.hass.config.language, "config")
-
         update_interval_options = {
             key: translations.get(f"component.bitpanda_price_tracker.config.intervals.{key}", key)
             for key in ["1", "2.5", "5"]
         }
-
         data_schema = vol.Schema({
             vol.Required(CONF_UPDATE_INTERVAL, default=self._update_interval): vol.In(update_interval_options)
         })
-
         return self.async_show_form(
             step_id="update_interval",
             data_schema=data_schema
@@ -161,8 +126,7 @@ class BitpandaOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_symbols(self, user_input: dict[str, Any] = None):
         """Handle symbol selection."""
-        valid_symbols = await fetch_valid_symbols(self._currency)
-
+        valid_symbols = await async_fetch_valid_symbols(self.hass, self._currency)
         if user_input and (selected := user_input.get(CONF_SYMBOLS)):
             self._symbols = selected
             return self.async_create_entry(
@@ -178,11 +142,9 @@ class BitpandaOptionsFlow(config_entries.OptionsFlow):
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
-
         data_schema = vol.Schema({
             vol.Required(CONF_SYMBOLS, default=self._symbols): selector.SelectSelector(selector_config)
         })
-
         return self.async_show_form(
             step_id="symbols",
             data_schema=data_schema
