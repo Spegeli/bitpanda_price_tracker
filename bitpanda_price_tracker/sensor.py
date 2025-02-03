@@ -2,12 +2,13 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
-from homeassistant.util import dt as dt_util
 from datetime import timedelta
 import logging
 import aiohttp
@@ -22,6 +23,10 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
+    """Handle updated options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -52,18 +57,13 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
-    @callback
-    async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-        """Handle options update."""
-        await hass.config_entries.async_reload(entry.entry_id)
-
-    entry.async_on_unload(entry.add_update_listener(update_listener))
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
 
 class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
     """Data update coordinator for Bitpanda API."""
 
-    def __init__(self, hass, currency, update_interval_minutes):
+    def __init__(self, hass: HomeAssistant, currency: str, update_interval_minutes: float) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -74,24 +74,22 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
         self.next_update = dt_util.utcnow() + self.update_interval
 
     async def _async_update_data(self):
-        """Fetch data from API."""
+        session = async_get_clientsession(self.hass)
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(BITPANDA_API_URL, timeout=15) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    return {
-                        symbol: {
-                            "price": details.get(self.currency),
-                            "last_updated": dt_util.utcnow().isoformat()
-                        }
-                        for symbol, details in data.items()
-                        if self.currency in details
+            async with session.get(BITPANDA_API_URL, timeout=15) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return {
+                    symbol: {
+                        "price": details.get(self.currency),
+                        "last_updated": dt_util.utcnow().isoformat()
                     }
+                    for symbol, details in data.items()
+                    if self.currency in details
+                }
         except Exception as err:
             raise UpdateFailed(f"API error: {err}") from err
         finally:
-            # Berechne den Zeitpunkt der nächsten Aktualisierung
             self.next_update = dt_util.utcnow() + self.update_interval
 
 
