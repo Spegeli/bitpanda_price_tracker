@@ -33,3 +33,17 @@ async def async_fetch_bitpanda_data(hass, currency: str) -> dict:
     except Exception as err:
         _LOGGER.error("Error fetching data from Bitpanda API: %s", err)
         raise
+
+async def async_fetch_valid_symbols(hass, currency: str) -> list[str]:
+    """
+    Fetch valid symbols from the Bitpanda API based on the provided currency.
+    
+    Returns:
+        A sorted list of valid symbols.
+    """
+    try:
+        data = await async_fetch_bitpanda_data(hass, currency)
+        return sorted(data.keys())
+    except Exception as err:
+        _LOGGER.error("Error fetching valid symbols: %s", err)
+        return []
