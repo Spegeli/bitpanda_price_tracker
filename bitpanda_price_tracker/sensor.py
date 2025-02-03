@@ -1,48 +1,26 @@
+from datetime import timedelta
+import logging
+
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.util import dt as dt_util
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
-from datetime import timedelta
-import logging
-import aiohttp
 
-from .const import (
-    DOMAIN,
-    CONF_SYMBOLS,
-    CONF_CURRENCY,
-    BITPANDA_API_URL,
-    CONF_UPDATE_INTERVAL,
-    CURRENCY_ICONS,
-)
+from .const import DOMAIN, CONF_SYMBOLS, CONF_CURRENCY, CONF_UPDATE_INTERVAL, CURRENCY_ICONS
+from .api import async_fetch_bitpanda_data
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    """Handle updated options."""
-    await hass.config_entries.async_reload(entry.entry_id)
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback
-):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up sensors from config entry."""
     currency = entry.data[CONF_CURRENCY]
     symbols = entry.options.get(CONF_SYMBOLS, entry.data.get(CONF_SYMBOLS, []))
     update_interval = float(entry.options.get(CONF_UPDATE_INTERVAL, 5))
 
-    coordinator = BitpandaDataUpdateCoordinator(
-        hass,
-        currency,
-        update_interval
-    )
+    coordinator = BitpandaDataUpdateCoordinator(hass, currency, update_interval)
     await coordinator.async_config_entry_first_refresh()
 
     if not coordinator.data:
@@ -57,8 +35,12 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
+    # Registriere den Update-Listener für Optionen-Änderungen
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
+    """Handle updated options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
     """Data update coordinator for Bitpanda API."""
@@ -73,33 +55,23 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
         self.currency = currency
         self.next_update = dt_util.utcnow() + self.update_interval
 
-    async def _async_update_data(self):
-        session = async_get_clientsession(self.hass)
+    async def _async_update_data(self) -> dict:
+        """Fetch data from API using the external api.py module."""
         try:
-            async with session.get(BITPANDA_API_URL, timeout=15) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return {
-                    symbol: {
-                        "price": details.get(self.currency),
-                        "last_updated": dt_util.utcnow().isoformat()
-                    }
-                    for symbol, details in data.items()
-                    if self.currency in details
-                }
+            data = await async_fetch_bitpanda_data(self.hass, self.currency)
+            return data
         except Exception as err:
             raise UpdateFailed(f"API error: {err}") from err
         finally:
+            # Aktualisiere den Zeitpunkt der nächsten Aktualisierung
             self.next_update = dt_util.utcnow() + self.update_interval
-
 
 class BitpandaPriceSensor(SensorEntity):
     """Representation of a Bitpanda price sensor."""
-
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_should_poll = False  # We use DataUpdateCoordinator
 
-    def __init__(self, coordinator, symbol, currency):
+    def __init__(self, coordinator: BitpandaDataUpdateCoordinator, symbol: str, currency: str) -> None:
         super().__init__()
         self.coordinator = coordinator
         self.symbol = symbol
@@ -125,7 +97,7 @@ class BitpandaPriceSensor(SensorEntity):
             "update_interval": str(self.coordinator.update_interval)
         }
 
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """Register update listener."""
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
