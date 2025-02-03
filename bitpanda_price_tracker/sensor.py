@@ -69,7 +69,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
 class BitpandaPriceSensor(SensorEntity):
     """Representation of a Bitpanda price sensor."""
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_should_poll = False  # We use DataUpdateCoordinator
+    _attr_should_poll = False
 
     def __init__(self, coordinator: BitpandaDataUpdateCoordinator, symbol: str, currency: str) -> None:
         super().__init__()
