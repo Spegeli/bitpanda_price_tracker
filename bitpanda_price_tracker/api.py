@@ -1,9 +1,8 @@
-"""
-Module to handle API interactions with Bitpanda API.
-"""
 import logging
+
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
 from .const import BITPANDA_API_URL
 
 _LOGGER = logging.getLogger(__name__)
